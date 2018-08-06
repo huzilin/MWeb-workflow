@@ -117,13 +117,30 @@ def output_header(doc2header):
         print(json.dumps({"items": [{"title": "没有相关header"}]}))
     else:
         output = {"items": []}
+        file_number=1
         for file, header in doc2header.items():
-            output["items"].append(
-                {"title": "header: %s" % header, "arg": file, "type": "file", "valid": "yes"})
+            with open(file, "r") as f:
+                f.readline()
+                line_num = 0
+                preview = ""
+                for line in f:
+                    if len(line.strip()):
+                        preview += line.replace("\r\n", "↩").replace("\n", "↩")
+                        line_num += 1
+                        if line_num == 2:
+                            break
+                output["items"].append(
+                    {"title": "header: %s" % header, "subtitle": preview, "arg": file, "type": "file", "valid": "yes"})
+            file_number+=1
+            if file_number == 10:
+                break
         print(json.dumps(output))
 
 
 if __name__ == '__main__':
+    if len(sys.argv) == 1:
+        print(json.dumps({"items": [{"title": "tag", "autocomplete": "tag ", "subtitle": "Please enter tags after tag, tag terminated by ',', and end with '.'.", "valid": "no"}, {"title": "<header>", "subtitle": "Search with header directly.", "valid": "no"}]}))
+        sys.exit(0)
     args = docopt(__doc__, help=False, version='MWeb workflow 1.0')
     tags = []
     tags_string = ""
@@ -137,7 +154,7 @@ if __name__ == '__main__':
         tags = tags_string.split(",")
         tag_flag = 1
     else:
-        tag_flag = 1
+        tag_flag = 0
 
     if args["<header>"]:
         header = args["<header>"]
