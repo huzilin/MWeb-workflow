@@ -1,15 +1,18 @@
 # -*- coding: utf-8 -*-
-"""Test
+"""MWeb Search
 
 Usage:
   get_file.py <header>
   get_file.py tag [<tags>] [<header>]
+  get_file.py tag [<tags>] filter [<keywords>]
+  get_file.py filter [<keywords>]
   get_file.py (--help)
   get_file.py --version
 
 Options:
   --version         Show version.
   tag <tags>        MWeb tags.
+  filter <keywords> Filter content by keywords.
   header            Doc header.
 """
 import sys
@@ -17,22 +20,20 @@ import pickle
 import re
 import os
 import sqlite3
-import string
 import json
 
 from docopt import docopt
 
 
-def tag_promopt(cursor, tags, tags_string):
+def tag_prompt(cursor, tags, tags_string):
     if len(tags) == 0:
-        sql = "select name from tag limit 10"
+        sql = "select name from tag"
     elif tags_string[-1] == ",":
         sql = "select name from tag where"
         and_string = ""
         for tag in tags[:-1]:
             sql = " ".join([sql, and_string, "name not like '%s'" % tag])
             and_string = "and"
-        sql = " ".join([sql, "limit 10"])
     elif tags_string[-1] == ".":
         sql = None
     else:
@@ -88,15 +89,15 @@ def get_tag_files(cursor, tags_string):
     return files
 
 
-def header_promopt(header, files):
+def header_prompt(header, files, tag_flag, filter_flag):
     docs_dir = "%s/docs" % MDOC_HOME
     doc2header = {}
     file_pattern = re.compile(r'.*\.md$')
     header_pattern = re.compile(r'%s' % header, re.I)
-    if not files:
-        docs = os.listdir(docs_dir)
-    else:
+    if tag_flag or filter_flag:
         docs = files
+    else:
+        docs = os.listdir(docs_dir)
     for doc in docs:
         if file_pattern.match(doc):
             doc_path = "%s/%s" % (docs_dir, doc)
@@ -104,12 +105,35 @@ def header_promopt(header, files):
                 line = f.readline()
                 doc_header = str(line.decode("utf8", "ignore")).rstrip(
                     "\r\n").rstrip("\n").lstrip("# ").strip()
-                if len(header) > 0:
+                if header:
                     if header_pattern.match(doc_header):
                         doc2header[doc_path] = doc_header
                 else:
                     doc2header[doc_path] = doc_header
     return doc2header, 1
+
+
+def content_filter(keywords, files, tag_flag):
+    docs_dir = "%s/docs" % MDOC_HOME
+    file_pattern = re.compile(r'.*\.md$')
+    if tag_flag:
+        docs = files
+    else:
+        docs = os.listdir(docs_dir)
+
+    for keyword in keywords:
+        keyword = keyword.lower()
+        match_docs = set()
+        for doc in docs:
+            if file_pattern.match(doc):
+                doc_path = "%s/%s" % (docs_dir, doc)
+                with open(doc_path, "rb") as f:
+                    for line in f:
+                        if keyword in str(line.decode("utf8", "ignore")).lower():
+                            match_docs.add(doc)
+                            break
+        docs = list(match_docs)
+    return docs
 
 
 def output_header(doc2header):
@@ -132,19 +156,22 @@ def output_header(doc2header):
                 output["items"].append(
                     {"title": "header: %s" % header, "subtitle": preview, "arg": file, "type": "file", "valid": "yes"})
             file_number+=1
-            if file_number == 10:
-                break
         print(json.dumps(output))
 
 
 if __name__ == '__main__':
     if len(sys.argv) == 1:
-        print(json.dumps({"items": [{"title": "tag", "autocomplete": "tag ", "subtitle": "Please enter tags after tag, tag terminated by ',', and end with '.'.", "valid": "no"}, {"title": "<header>", "subtitle": "Search with header directly.", "valid": "no"}]}))
+        print(json.dumps({"items": [
+            {"title": "tag", "autocomplete": "tag ", "subtitle": "Please enter tags after tag, tag terminated by ',', and end with '.'.", "valid": "no"},
+            {"title": "filter", "autocomplete": "filter", "subtitle": "Please enter keywords after filter, keywords terminated by ','.", "valid": "no"},
+            {"title": "<header>", "subtitle": "Search with header directly.", "valid": "no"}]}))
         sys.exit(0)
     args = docopt(__doc__, help=False, version='MWeb workflow 1.0')
     tags = []
     tags_string = ""
     header = ""
+    keywords = []
+
     if args["--help"]:
         print(__doc__)
         sys.exit(0)
@@ -155,6 +182,12 @@ if __name__ == '__main__':
         tag_flag = 1
     else:
         tag_flag = 0
+
+    if args["filter"] and args["<keywords>"]:
+        keywords = args["<keywords>"].split(",")
+        filter_flag = 1
+    else:
+        filter_flag = 0
 
     if args["<header>"]:
         header = args["<header>"]
@@ -172,13 +205,17 @@ if __name__ == '__main__':
 
     files = []
     if tag_flag:
-        filtered_tags, tag_flag = tag_promopt(cursor, tags, tags_string)
-        if tag_flag:
+        filtered_tags, tag_eof = tag_prompt(cursor, tags, tags_string)
+        if tag_eof:
             output_tag(filtered_tags)
             sys.exit(0)
         else:
             files = get_tag_files(cursor, tags_string)
-    doc2header, header_flag = header_promopt(header, files)
+
+    if filter_flag:
+        files = content_filter(keywords, files, tag_flag)
+
+    doc2header, header_flag = header_prompt(header, files, tag_flag, filter_flag)
     if header_flag:
         output_header(doc2header)
     conn.close()

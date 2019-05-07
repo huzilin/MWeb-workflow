@@ -3,8 +3,16 @@
 
 Fill in the tags after the tag flag, separated by `,`, end with `.`.  Then you can filter doc by header.
 
-![](./mweb.gif)
+![tags and header](./mweb.gif)
 
 ## Filter by header
 
-![](./mweb2.gif)
+![header](./mweb2.gif)
+
+## Filter by tags and content filter
+
+![tags and content filter](./mweb3.gif)
+
+## Filter by content filter
+
+![content filter](./mweb3.gif)
