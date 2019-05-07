@@ -1,18 +1,21 @@
 # MWeb-workflow
-## Filter by tags and header
+## Filter by header
+![tags](./header.gif)
 
+## Filter by tags
 Fill in the tags after the tag flag, separated by `,`, end with `.`.  Then you can filter doc by header.
 
-![tags and header](./mweb.gif)
+![tags](./tags.gif)
 
-## Filter by header
+## Filter by tags and header
 
-![header](./mweb2.gif)
+![tags and header](./tags_header.gif)
+
 
 ## Filter by tags and content filter
 
-![tags and content filter](./mweb3.gif)
+![tags and content filter](./tags_filter.gif)
 
 ## Filter by content filter
 
-![content filter](./mweb3.gif)
+![content filter](./filter.gif)
